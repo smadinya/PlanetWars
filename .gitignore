@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Bot logs (regenerated every run; game protocol requires stdout stay clean)
+*.log
+log.txt
+
+# Windows "downloaded from the internet" metadata
+*:Zone.Identifier
+
+# IDEs
+.idea/
