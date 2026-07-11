@@ -39,3 +39,10 @@ def spread_to_weakest_neutral_planet(state):
     else:
         # (4) Send half the ships from my strongest planet to the weakest enemy planet.
         return issue_order(state, strongest_planet.ID, weakest_planet.ID, strongest_planet.num_ships / 2)
+
+def ships_needed(state, target, source):
+    # ships to capture `target` from `source`, growth-aware for enemy planets
+    cost = target.num_ships + 1
+    if target.owner == 2:  # enemy grows en route
+        cost += state.distance(source.ID, target.ID) * target.growth_rate
+    return cost
