@@ -22,23 +22,37 @@ def attack_weakest_enemy_planet(state):
         return issue_order(state, strongest_planet.ID, weakest_planet.ID, strongest_planet.num_ships / 2)
 
 
-def spread_to_weakest_neutral_planet(state):
-    # (1) If we currently have a fleet in flight, just do nothing.
-    if len(state.my_fleets()) >= 1:
-        return False
+def spread_to_best_neutral(state):
+    # Send to neutrals with the best growth_rate-per-cost, skip ones already
+    already_targeted = {fleet.destination_planet for fleet in state.my_fleets()}
+    committed = {p.ID: 0 for p in state.my_planets()}
 
-    # (2) Find my strongest planet.
-    strongest_planet = max(state.my_planets(), key=lambda p: p.num_ships, default=None)
+    neutral_targets = [p for p in state.neutral_planets() if p.ID not in already_targeted]
 
-    # (3) Find the weakest neutral planet.
-    weakest_planet = min(state.neutral_planets(), key=lambda p: p.num_ships, default=None)
+    def economic_score(p):
+        cost = p.num_ships + 1
+        return p.growth_rate / cost if cost > 0 else 0
 
-    if not strongest_planet or not weakest_planet:
-        # No legal source or destination
-        return False
-    else:
-        # (4) Send half the ships from my strongest planet to the weakest enemy planet.
-        return issue_order(state, strongest_planet.ID, weakest_planet.ID, strongest_planet.num_ships / 2)
+    neutral_targets.sort(key=economic_score, reverse=True)
+
+    orders_issued = False
+    for target in neutral_targets:
+        cost = ships_needed(state, target, target)
+
+        best_source = None
+        best_available = 0
+        for source in state.my_planets():
+            available = source.num_ships - committed[source.ID]
+            if available > cost and available > best_available:
+                best_source = source
+                best_available = available
+
+        if best_source:
+            issue_order(state, best_source.ID, target.ID, cost)
+            committed[best_source.ID] += cost
+            orders_issued = True
+
+    return orders_issued
 
 def ships_needed(state, target, source):
     # ships to capture `target` from `source`, growth-aware for enemy planets
