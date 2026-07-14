@@ -101,7 +101,10 @@ def spread_to_best_neutral(state):
         best_source = None
         best_available = 0
         for source in state.my_planets():
-            available = source.num_ships - committed[source.ID]
+            # Spend at most half the garrison on expansion. Draining a planet to take a
+            # neutral just hands it to the next counterattack, and defend_planet has no
+            # source to pull from. Without this, aggressive_bot and production_bot win.
+            available = source.num_ships / 2 - committed[source.ID]
             if available > cost and available > best_available:
                 best_source = source
                 best_available = available
