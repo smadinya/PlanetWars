@@ -1,4 +1,4 @@
-from behavior_tree_bot.behaviors import threat_deficit
+from behavior_tree_bot.behaviors import threat_deficit, ships_needed
 
 
 def if_neutral_planet_available(state):

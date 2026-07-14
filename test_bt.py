@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from planet_wars import PlanetWars
 from behavior_tree_bot.behaviors import ships_needed, threat_deficit, defend_planet, attack_enemy_weakpoint
-from behavior_tree_bot.checks import is_under_threat
+from behavior_tree_bot.checks import is_under_threat, can_expand, have_economic_advantage
 
 
 def run(action, map_data):
@@ -53,5 +53,11 @@ assert not result and not orders, 'no surplus to guarantee a capture -> dribble 
 
 result, orders = run(attack_enemy_weakpoint, ENEMY_IN_RANGE + 'F 1 51 0 1 10 4\n')
 assert not result and not orders, 'planet 1 is already targeted by a fleet of mine'
+
+# Unwired checks still have to be callable: can_expand once NameError'd on a missing import,
+# and nothing caught it because no tree node referenced it.
+board = PlanetWars('P 0 0 1 100 5\nP 5 0 0 20 3\nP 10 0 2 20 3\n')
+assert can_expand(board) is True                 # 100 ships, neutral costs 21
+assert have_economic_advantage(board) is True    # my growth 5 vs enemy growth 3
 
 print('ok')
