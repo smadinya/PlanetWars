@@ -1,6 +1,65 @@
 import sys
+from math import ceil
 sys.path.insert(0, '../')
 from planet_wars import issue_order
+
+
+def threat_deficit(state, planet_id):
+    # Ships one of my planets will be short by when the enemy lands. <= 0 means it holds.
+    # ponytail: all inbound enemy fleets are treated as one wave landing at the earliest ETA.
+    # Overestimates the threat when waves are staggered; split per-arrival if that costs a match.
+    incoming = [f for f in state.enemy_fleets() if f.destination_planet == planet_id]
+    if not incoming:
+        return 0
+
+    planet = state.planets[planet_id]
+    eta = min(f.turns_remaining for f in incoming)
+    defenders = planet.num_ships + eta * planet.growth_rate \
+                + sum(f.num_ships for f in state.my_fleets()
+                      if f.destination_planet == planet_id and f.turns_remaining <= eta)
+    return int(ceil(sum(f.num_ships for f in incoming) - defenders))
+
+
+def defend_planet(state):
+    issued = False
+
+    for planet_id in [p.ID for p in state.my_planets()]:
+        deficit = threat_deficit(state, planet_id)
+        if deficit <= 0:
+            continue
+
+        eta = min(f.turns_remaining for f in state.enemy_fleets()
+                  if f.destination_planet == planet_id)
+
+        # state.my_planets() is re-read every pass: issue_order replaces the source planet.
+        for source in sorted(state.my_planets(), key=lambda p: state.distance(p.ID, planet_id)):
+            if source.ID == planet_id or state.distance(source.ID, planet_id) > eta:
+                continue  # reinforcements landing after the planet falls are wasted
+            if threat_deficit(state, source.ID) > 0:
+                continue  # don't strip a planet that is losing its own fight
+            if source.num_ships > deficit:
+                issued |= issue_order(state, source.ID, planet_id, deficit)
+                break
+
+    return issued
+
+
+def attack_enemy_weakpoint(state):
+    targeted = {fleet.destination_planet for fleet in state.my_fleets()}
+    targets = sorted((p for p in state.enemy_planets() if p.ID not in targeted),
+                     key=lambda p: p.num_ships)
+
+    issued = False
+    for target in targets:
+        for source in sorted(state.my_planets(), key=lambda p: state.distance(p.ID, target.ID)):
+            if threat_deficit(state, source.ID) > 0:
+                continue
+            cost = ships_needed(state, target, source)
+            if source.num_ships > cost:
+                issued |= issue_order(state, source.ID, target.ID, cost)
+                break
+
+    return issued
 
 
 def attack_weakest_enemy_planet(state):
